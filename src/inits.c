@@ -114,12 +114,19 @@ void USART_INIT(){
 	USART_InitTypeDef uart;
 
 	USART_StructInit(&uart);
+	/*
 	//uart.USART_BaudRate = 9600;
-	//uart.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+	//uart.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;*/
+	uart.USART_BaudRate = 9600;
+	uart.USART_WordLength = 8;
+	uart.USART_Parity = USART_Parity_No;
+	uart.USART_StopBits = 1;
+	uart.USART_HardwareFlowControl = 0;
+	uart.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
 	USART_Init(USART2, &uart);
 
 	USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
-	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
+	//USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
 
 	USART_Cmd(USART2, ENABLE);
 }

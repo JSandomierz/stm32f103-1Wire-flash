@@ -1,5 +1,7 @@
 #include "stm32f10x.h"
 #include "stm32f10x_gpio.h"
+#include "stm32f10x_rcc.h"
+#include "misc.h"
 
 #include "onewire.h"
 #include "usart.h"
@@ -18,7 +20,6 @@ uint8_t oneWireReset(){
 	//GPIO_SetBits(GPIOC, GPIO_Pin_6);
 	GPIO_ResetBits(GPIOC, GPIO_Pin_6);
 	delay_us(480);
-
 	GPIO_SetBits(GPIOC, GPIO_Pin_6);
 	delay_us(70);
 	if( GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_6) == RESET ){
@@ -29,22 +30,31 @@ uint8_t oneWireReset(){
 }
 
 void writeBit(uint8_t bit){
+	__disable_irq();
 	GPIO_ResetBits(GPIOC, GPIO_Pin_6);
 	//delay_us(5);
-	if(bit == RESET) delay_us(60);
+	if(bit == RESET){
+		__enable_irq();
+		delay_us(60);
+	}
 	else{
 		GPIO_SetBits(GPIOC, GPIO_Pin_6);
+		__enable_irq();
 		delay_us(55);
 	}
 	GPIO_SetBits(GPIOC, GPIO_Pin_6);
 }
 
 uint8_t readBit(){
+	__disable_irq();
 	uint8_t result;
 	GPIO_ResetBits(GPIOC, GPIO_Pin_6);
 	GPIO_SetBits(GPIOC, GPIO_Pin_6);
+	__enable_irq();
 	delay_us(15);
+	__disable_irq();
 	result = GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_6);
+	__enable_irq();
 	delay_us(45);
 	return result;
 }

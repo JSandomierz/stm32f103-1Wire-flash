@@ -8,7 +8,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "stm32f10x_gpio.h"
+/*#include "stm32f10x_gpio.h"
 
 void send_char(uint8_t c)
 {
@@ -31,7 +31,7 @@ void send_string(const char* s)
 	send_char(*s++);
 }
 
-/*void blink(){
+void blink(){
 	GPIO_SetBits(GPIOA, GPIO_Pin_5);
 	delay_ms(1000);
 	GPIO_ResetBits(GPIOA, GPIO_Pin_5);
@@ -85,7 +85,7 @@ void USART_Write(char* dataString){
 	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
 }
 
-void USART_WriteFromBuffer(){
+/*void USART_WriteFromBuffer(){
 	int i;//use when needed to write data.
 	if(usartReadBuffer.lastReadPos!=usartReadBuffer.lastWritePos){
 		usartReadBuffer.DATA[usartReadBuffer.lastWritePos++]='\r';
@@ -100,10 +100,10 @@ void USART_WriteFromBuffer(){
 		if(usartReadBuffer.lastReadPos>=BUFFER_SIZE) usartReadBuffer.lastReadPos=0;
 	}
 	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
-}
+}*/
 
 uint8_t USART_ReadCommand(){//interpret the data
-	//USART_ITConfig(USART2, USART_IT_RXNE, DISABLE);
+	USART_ITConfig(USART2, USART_IT_RXNE, DISABLE);
 	if(usartReadBuffer.lastReadPos!=usartReadBuffer.lastWritePos){
 		if( usartReadBuffer.DATA[usartReadBuffer.lastReadPos] == '#' || pendingCommand.loadedChars>0){
 			printf2("%c", usartReadBuffer.DATA[usartReadBuffer.lastReadPos]);
@@ -113,19 +113,25 @@ uint8_t USART_ReadCommand(){//interpret the data
 					pendingCommand.buffer[ pendingCommand.loadedChars++ ] = usartReadBuffer.DATA[usartReadBuffer.lastReadPos++];
 					if(usartReadBuffer.lastReadPos>=BUFFER_SIZE) usartReadBuffer.lastReadPos=0;
 
-					if( pendingCommand.loadedChars > CMD_BUFFER_SIZE-1 ) return 0;
+					if( pendingCommand.loadedChars > CMD_BUFFER_SIZE-1 ){
+						pendingCommand.loadedChars=0;
+						break;
+					}
 				}else{
 					pendingCommand.buffer[pendingCommand.loadedChars]='\0';
 					//printf2("\n%s\r\n", pendingCommand.buffer);
 					pendingCommand.loadedChars=0;
+					USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 					return 1;
 				}
 			}
 		}else{
 			usartReadBuffer.lastReadPos++;
 			if(usartReadBuffer.lastReadPos>=BUFFER_SIZE) usartReadBuffer.lastReadPos=0;
+			pendingCommand.buffer[0]='\0';
 		}
 	}
+	USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 	return 0;
 }
 
@@ -145,11 +151,15 @@ uint8_t interpretCommand(){
 				printf2("\nLED OFF\r\n");
 				blinkActivated=0;
 			}else printf2("\nInvalid parameter for LED cmd\r\n");
-		}else
-		if( !strcmp(command, "#convert") ){
+		}else if( !strcmp(command, "#convert") ){
+			sscanf(pendingCommand.buffer, "%s %d", command, command, &value);
 			doConvert=0x01;
-		}else printf2("\r\nNie rozpoznano polecenia!\r\n");
+		}else if( !strcmp(command, "#read") ){
+			sscanf(pendingCommand.buffer, "%s %d", command, &value);
+			printf2("Sending %d readings...\r\n", value);
+		}else printf2("\nNie rozpoznano polecenia!\r\n");
 		pendingCommand.buffer[0] = '\0';
+		pendingCommand.loadedChars=0;
 	}
 }
 /*void USART_ReadCommand(){//interpret the data
