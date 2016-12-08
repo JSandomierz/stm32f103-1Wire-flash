@@ -20,3 +20,12 @@ void TIM2_IRQHandler()
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
     }
 }
+
+void TIM3_IRQHandler()
+{
+    if (TIM_GetITStatus(TIM3, TIM_IT_Update) == SET)
+    {
+    	currentms++;
+        TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
+    }
+}

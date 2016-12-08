@@ -15,11 +15,6 @@ struct Command{
 }pendingCommand;
 enum commandCode {C_LED, C_CONVERT, C_HELP};
 
-//blinking LED
-uint8_t blinkActivated;
-uint16_t blinkms;
-uint16_t currentms;
-
 //check to do conversion and send temp
 uint8_t doConvert;
 
@@ -28,7 +23,5 @@ void SysTick_Handler(void);
 void GPIO_INIT();
 void NVIC_INIT(void);
 void USART_INIT();
-
-void blink();
 
 #endif

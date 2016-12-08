@@ -17,7 +17,8 @@ uint8_t readBit();
 void writeByte(uint8_t byte);
 uint8_t readByte();
 
-void readData(uint8_t* data);
+uint8_t checkCRC(uint8_t *binData);
+uint8_t readData(uint8_t* data);
 
 uint8_t isParasitePower();
 

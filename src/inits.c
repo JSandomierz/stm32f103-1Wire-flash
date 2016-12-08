@@ -6,8 +6,10 @@
 #include "misc.h"
 
 #include "inits.h"
+#include "delay.h"
 
 void TIMER_INIT(){
+	//init TIM 2 to calculate 1us
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 
 	TIM_TimeBaseInitTypeDef tim;
@@ -31,11 +33,24 @@ void TIMER_INIT(){
 	nvic.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&nvic);
 
-	SysTick_Config(SystemCoreClock / 1000);
-}
+	//init TIM 3 to calculate 1ms
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
 
-void SysTick_Handler(void){
-	currentms++;
+	TIM_TimeBaseStructInit(&tim);
+	tim.TIM_CounterMode = TIM_CounterMode_Up;
+	tim.TIM_Prescaler = 63;
+	tim.TIM_Period = 1000-1;
+	TIM_TimeBaseInit(TIM3, &tim);
+
+	TIM_ITConfig(TIM3, TIM_IT_Update, ENABLE);
+
+	TIM_Cmd(TIM3, ENABLE);
+
+	nvic.NVIC_IRQChannel = TIM3_IRQn;
+	nvic.NVIC_IRQChannelPreemptionPriority = 0;
+	nvic.NVIC_IRQChannelSubPriority = 0;
+	nvic.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&nvic);
 }
 
 void GPIO_INIT(){
@@ -107,21 +122,4 @@ void USART_INIT(){
 	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
 
 	USART_Cmd(USART2, ENABLE);
-}
-
-void blink(){
-	if(blinkActivated){
-		if(blinkms > 10){
-			if(currentms > blinkms){
-				currentms=0;
-				if(blinkActivated==1){
-					GPIO_SetBits(GPIOA, GPIO_Pin_5);
-					blinkActivated=2;
-				}else{
-					GPIO_ResetBits(GPIOA, GPIO_Pin_5);
-					blinkActivated=1;
-				}
-			}
-		}else GPIO_SetBits(GPIOA, GPIO_Pin_5);
-	}else GPIO_ResetBits(GPIOA, GPIO_Pin_5);
 }

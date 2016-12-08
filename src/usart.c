@@ -3,6 +3,7 @@
 
 #include "inits.h"
 #include "usart.h"
+#include "delay.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
