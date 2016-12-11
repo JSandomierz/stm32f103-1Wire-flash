@@ -8,36 +8,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-/*#include "stm32f10x_gpio.h"
-
-void send_char(uint8_t c)
-{
-    while (USART_GetFlagStatus(USART2, USART_FLAG_TXE) == RESET);
-    USART_SendData(USART2, c);
-}
-
-void send_raw(uint8_t byte){
-	uint8_t mask = 0x1;
-	int i=0;
-	for(;i<8;i++){
-		if( byte & (mask<<i) ) send_char('1');
-		else send_char('0');
-	}
-}
-
-void send_string(const char* s)
-{
-	while (*s)
-	send_char(*s++);
-}
-
-void blink(){
-	GPIO_SetBits(GPIOA, GPIO_Pin_5);
-	delay_ms(1000);
-	GPIO_ResetBits(GPIOA, GPIO_Pin_5);
-	delay_ms(1000);
-}*/
-
 void USART2_IRQHandler(void){
     if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET){
     	USART_ClearITPendingBit(USART2, USART_IT_RXNE);
@@ -45,7 +15,7 @@ void USART2_IRQHandler(void){
 		usartReadBuffer.DATA[usartReadBuffer.lastWritePos++] = USART_ReceiveData(USART2);
 		if(usartReadBuffer.lastWritePos >= BUFFER_SIZE) usartReadBuffer.lastWritePos = 0;
     }
-    if (USART_GetITStatus(USART2, USART_IT_TXE) != RESET){ // Transmit the string in a loop
+    if (USART_GetITStatus(USART2, USART_IT_TXE) != RESET){
     	USART_ClearITPendingBit(USART2, USART_IT_TXE);
     	if(usartWriteBuffer.lastReadPos!=usartWriteBuffer.lastWritePos){
 			USART_SendData(USART2, usartWriteBuffer.DATA[usartWriteBuffer.lastReadPos++]);
@@ -85,31 +55,12 @@ void USART_Write(char* dataString){
 	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
 }
 
-/*void USART_WriteFromBuffer(){
-	int i;//use when needed to write data.
-	if(usartReadBuffer.lastReadPos!=usartReadBuffer.lastWritePos){
-		usartReadBuffer.DATA[usartReadBuffer.lastWritePos++]='\r';
-		if(usartReadBuffer.lastWritePos >= BUFFER_SIZE) usartReadBuffer.lastWritePos = 0;
-		usartReadBuffer.DATA[usartReadBuffer.lastWritePos++]='\n';
-		if(usartReadBuffer.lastWritePos >= BUFFER_SIZE) usartReadBuffer.lastWritePos = 0;
-	}
-	USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
-	while(usartReadBuffer.lastReadPos!=usartReadBuffer.lastWritePos){
-		usartWriteBuffer.DATA[usartWriteBuffer.lastWritePos++] = usartReadBuffer.DATA[usartReadBuffer.lastReadPos++];
-		if(usartWriteBuffer.lastWritePos>=BUFFER_SIZE) usartWriteBuffer.lastWritePos=0;
-		if(usartReadBuffer.lastReadPos>=BUFFER_SIZE) usartReadBuffer.lastReadPos=0;
-	}
-	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
-}*/
-
 uint8_t USART_ReadCommand(){//interpret the data
-	USART_ITConfig(USART2, USART_IT_RXNE, DISABLE);
 	if(usartReadBuffer.lastReadPos!=usartReadBuffer.lastWritePos){
 		if( usartReadBuffer.DATA[usartReadBuffer.lastReadPos] == '#' || pendingCommand.loadedChars>0){
 			printf2("%c", usartReadBuffer.DATA[usartReadBuffer.lastReadPos]);
 			while((usartReadBuffer.lastReadPos!=usartReadBuffer.lastWritePos)){
 				if( usartReadBuffer.DATA[usartReadBuffer.lastReadPos] != '\r' ){
-					//printf2("\r\nCHAR\r\n");
 					pendingCommand.buffer[ pendingCommand.loadedChars++ ] = usartReadBuffer.DATA[usartReadBuffer.lastReadPos++];
 					if(usartReadBuffer.lastReadPos>=BUFFER_SIZE) usartReadBuffer.lastReadPos=0;
 
@@ -119,9 +70,7 @@ uint8_t USART_ReadCommand(){//interpret the data
 					}
 				}else{
 					pendingCommand.buffer[pendingCommand.loadedChars]='\0';
-					//printf2("\n%s\r\n", pendingCommand.buffer);
 					pendingCommand.loadedChars=0;
-					USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 					return 1;
 				}
 			}
@@ -131,7 +80,6 @@ uint8_t USART_ReadCommand(){//interpret the data
 			pendingCommand.buffer[0]='\0';
 		}
 	}
-	USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 	return 0;
 }
 
@@ -141,7 +89,14 @@ uint8_t interpretCommand(){
 		int value=0;
 		sscanf(pendingCommand.buffer, "%s", command);
 		//printf2("\r\n%s\r\n", command);
-		if( !strcmp(command, "#led") ){
+		if( !strcmp(command, "#tempverb") ){
+			sscanf(pendingCommand.buffer, "%s %s", command, command);
+			if( !strcmp(command, "on") ){
+				printf2("\nTemp. verbose is on.\r\n");
+			}else if( !strcmp(command, "off") ){
+				printf2("\nTemp. verbose is off.\r\n");
+			}else printf2("\nInvalid parameter for tempverb cmd\r\n");
+		}else if( !strcmp(command, "#led") ){
 			sscanf(pendingCommand.buffer, "%s %s %d", command, command, &value);
 			if( !strcmp(command, "on") ){
 				printf2("\nLED ON, blink: %d\r\n", value);
@@ -152,11 +107,26 @@ uint8_t interpretCommand(){
 				blinkActivated=0;
 			}else printf2("\nInvalid parameter for LED cmd\r\n");
 		}else if( !strcmp(command, "#convert") ){
-			sscanf(pendingCommand.buffer, "%s %d", command, command, &value);
+			sscanf(pendingCommand.buffer, "%s %d", command, &value);
+			printf2("\nCONVERT ON, t: %d\r\n", value);
 			doConvert=0x01;
 		}else if( !strcmp(command, "#read") ){
 			sscanf(pendingCommand.buffer, "%s %d", command, &value);
 			printf2("Sending %d readings...\r\n", value);
+		}else if( !strcmp(command, "#help") ){
+			sscanf(pendingCommand.buffer, "%s %s", command, command);
+			if(strlen(command)==0) printf2("\nPolecenia: help, tempverb, convert, read, led.\r\n");
+			else{
+				if( !strcmp(command, "tempverb") ){
+					printf2("\ntempverb on|off - informacje o temp. przy konwersji\r\n", value);
+				}else if( !strcmp(command, "convert") ){
+					printf2("\nconvert [czestotliwosc] - konwersja co n sekund.\r\n", value);
+				}else if( !strcmp(command, "read") ){
+					printf2("\nread [num] - pobranie n odczytow z pamieci.\r\n", value);
+				}else if( !strcmp(command, "led") ){
+					printf2("\nled [czestotliwosc] - miganie dioda co n ms.\r\n", value);
+				}else printf2("\nPolecenia: help, tempverb, convert, read, led.\r\n");
+			}
 		}else printf2("\nNie rozpoznano polecenia!\r\n");
 		pendingCommand.buffer[0] = '\0';
 		pendingCommand.loadedChars=0;
@@ -185,7 +155,6 @@ uint8_t interpretCommand(){
 			if( !sscanf(tmp, "%d", &pendingCommand.no) ) pendingCommand.no=101;
 
 			strncpy( tmp, pendingCommand.buffer + 3, 3 );
-			if( !strcmp(tmp, "NIL") ) pendingCommand.code=1;
 			if( !strcmp(tmp, "CON") ) pendingCommand.code=2;
 			if( !strcmp(tmp, "SND") ) pendingCommand.code=3;
 			if( !strcmp(tmp, "LED") ) pendingCommand.code=255;
