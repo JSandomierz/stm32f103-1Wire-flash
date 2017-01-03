@@ -53,6 +53,10 @@ void USART_Write(char* dataString){
 		if(usartWriteBuffer.lastWritePos>=BUFFER_SIZE) usartWriteBuffer.lastWritePos=0;
 	}
 	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
+	if(USART_GetFlagStatus(USART2, USART_FLAG_TXE)){
+		USART_SendData(USART2, usartWriteBuffer.DATA[usartWriteBuffer.lastReadPos++]);
+		if(usartWriteBuffer.lastReadPos>=BUFFER_SIZE) usartWriteBuffer.lastReadPos=0;
+	}
 }
 
 uint8_t USART_ReadCommand(){//interpret the data
