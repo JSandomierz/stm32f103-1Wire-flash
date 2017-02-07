@@ -12,6 +12,9 @@ void oneWireInit(){
 	onewiregpio.GPIO_Pin = GPIO_Pin_6;
 	onewiregpio.GPIO_Mode = GPIO_Mode_Out_OD;
 	GPIO_Init(GPIOC, &onewiregpio);
+
+	uint8_t data[9];
+	readData(data);
 }
 
 uint8_t oneWireReset(){

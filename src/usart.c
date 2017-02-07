@@ -4,6 +4,8 @@
 #include "inits.h"
 #include "usart.h"
 #include "delay.h"
+#include "flash.h"
+#include "onewire.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -93,30 +95,32 @@ uint8_t interpretCommand(){
 		int value=0;
 		sscanf(pendingCommand.buffer, "%s", command);
 		//printf2("\r\n%s\r\n", command);
-		if( !strcmp(command, "#tempverb") ){
-			sscanf(pendingCommand.buffer, "%s %s", command, command);
-			if( !strcmp(command, "on") ){
-				printf2("\nTemp. verbose is on.\r\n");
-			}else if( !strcmp(command, "off") ){
-				printf2("\nTemp. verbose is off.\r\n");
-			}else printf2("\nInvalid parameter for tempverb cmd\r\n");
-		}else if( !strcmp(command, "#led") ){
-			sscanf(pendingCommand.buffer, "%s %s %d", command, command, &value);
-			if( !strcmp(command, "on") ){
-				printf2("\nLED ON, blink: %d\r\n", value);
-				blinkms = value;
-				blinkActivated=1;
-			}else if( !strcmp(command, "off") ){
-				printf2("\nLED OFF\r\n");
-				blinkActivated=0;
-			}else printf2("\nInvalid parameter for LED cmd\r\n");
-		}else if( !strcmp(command, "#convert") ){
+		if( !strcmp(command, "#convert") ){
+			blinkActivated=0x01;
 			sscanf(pendingCommand.buffer, "%s %d", command, &value);
 			printf2("\nCONVERT ON, t: %d\r\n", value);
-			doConvert=0x01;
+			blinkms=value;
 		}else if( !strcmp(command, "#read") ){
-			sscanf(pendingCommand.buffer, "%s %d", command, &value);
-			printf2("Sending %d readings...\r\n", value);
+			//printf2("Sending %d readings...\r\n", value);
+			int n;
+			sscanf(pendingCommand.buffer, "%s %d", command, &n);
+			int i;
+			uint32_t currentAddress=FlashData.nextAddress;
+			uint16_t currentData=0x00;
+			printf2("\r\n");
+			for(i=0;i<n;i++){
+				currentAddress-=2;
+				if( currentAddress<FLASH_USER_START ) currentAddress=FLASH_USER_END-1;
+				currentData = readFlashPageHalfWord( currentAddress );
+				if( currentData==0xFFFF ) break;
+				float temp = getTemp(((uint16_t)currentData));
+				int res = (int)temp;
+				int rem = (int)((temp-res) * 10000);
+				printf2("%08X: %04X, %d.%04d\r\n", currentAddress, currentData,  res, rem);
+				delay_ms(30);//for proper display...
+			}
+		}else if( !strcmp(command, "#flash_reset") ){
+			flashReset();
 		}else if( !strcmp(command, "#help") ){
 			sscanf(pendingCommand.buffer, "%s %s", command, command);
 			if(strlen(command)==0) printf2("\nPolecenia: help, tempverb, convert, read, led.\r\n");
@@ -136,37 +140,3 @@ uint8_t interpretCommand(){
 		pendingCommand.loadedChars=0;
 	}
 }
-/*void USART_ReadCommand(){//interpret the data
-	if(pendingCommand.loadedChars >= CMDLEN){
-		//pendingCommand.loadedChars=0;
-		strcpy(pendingCommand.buffer, "(00ABC123)");
-		pendingCommand.buffer[CMDLEN] = '\0';
-		int i;
-		for(i=0;i<CMDLEN;i++){
-			//printf2("\r\n%c\r\n", usartReadBuffer.DATA[usartReadBuffer.lastReadPos]);
-			pendingCommand.buffer[ i ] = usartReadBuffer.DATA[usartReadBuffer.lastReadPos++];
-			if(usartReadBuffer.lastReadPos>=BUFFER_SIZE) usartReadBuffer.lastReadPos=0;
-			//if(usartReadBuffer.lastReadPos==usartReadBuffer.lastWritePos) return;//ERROR!
-		}
-		pendingCommand.loadedChars-=CMDLEN;
-		printf2("\r\nMessage received: %s\r\n", pendingCommand.buffer);
-		if( pendingCommand.buffer[0]=='(' && pendingCommand.buffer[CMDLEN-1]==')' ){
-			char tmp[CMDLEN];
-			tmp[2]='\0';
-			tmp[3]='\0';
-
-			strncpy( tmp, pendingCommand.buffer+1, 2 );
-			if( !sscanf(tmp, "%d", &pendingCommand.no) ) pendingCommand.no=101;
-
-			strncpy( tmp, pendingCommand.buffer + 3, 3 );
-			if( !strcmp(tmp, "CON") ) pendingCommand.code=2;
-			if( !strcmp(tmp, "SND") ) pendingCommand.code=3;
-			if( !strcmp(tmp, "LED") ) pendingCommand.code=255;
-
-			strncpy( tmp, pendingCommand.buffer + 6, 3 );
-			if( !sscanf(tmp, "%d", &pendingCommand.value) ) pendingCommand.no=102;
-
-			printf2("CMD: %d no %d, value: %d\r\n", pendingCommand.code, pendingCommand.no, pendingCommand.value);
-		}else printf2("Nieprawidlowy format komendy - IDCMDVAL, XXCMDXXX\r\n");
-	}
-}*/

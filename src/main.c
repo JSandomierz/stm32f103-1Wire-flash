@@ -9,29 +9,25 @@
 #include "usart.h"
 #include "delay.h"
 #include "onewire.h"
+#include "flash.h"
 
-/*
-
-int __io_putchar(int c)
-{
- send_char(c);
- return c;
-}*/
-void blink(){
-	if(blinkActivated){
-		if(blinkms > 10){
-			if(currentms > blinkms){
-				currentms=0;
-				if(blinkActivated==1){
-					GPIO_SetBits(GPIOA, GPIO_Pin_5);
-					blinkActivated=2;
-				}else{
-					GPIO_ResetBits(GPIOA, GPIO_Pin_5);
-					blinkActivated=1;
-				}
+void readTemp(){
+	if(blinkms > 10){
+		if(currentms > blinkms){
+			currentms=0;
+			uint8_t data[9];
+			uint16_t rawTemp = 0x00;
+			if(readData(data)){
+				rawTemp = convertRawTempData(data);
+				float temp = getTemp(rawTemp);
+				int res = (int)temp;
+				int rem = (int)((temp-res) * 10000);
+				//printf2("\r\nTemperatura wynosi: %d.%04d\r\n",res, rem);
+				//printf2("%04X, %d.%04d\r\n", rawTemp,  res, rem);
+				writeNextHalfWord( rawTemp );
 			}
-		}else GPIO_SetBits(GPIOA, GPIO_Pin_5);
-	}else GPIO_ResetBits(GPIOA, GPIO_Pin_5);
+		}
+	}
 }
 
 int main(void)
@@ -41,25 +37,12 @@ int main(void)
 	GPIO_INIT();
 	USART_INIT();
 	TIMER_INIT();
+	flashInit();
 	oneWireInit();
-
-	uint8_t data[9];
 
     while(1)
     {
     	interpretCommand();
-    	blink();
-    	if( doConvert ){
-    		doConvert=0x00;
-    		TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);
-    		//delay_ms(1);
-    		if(readData(data)){
-        		float temp = getTemp(convertRawTempData(data));
-    			int res = (int)temp;
-    			int rem = (int)((temp-res) * 10000);
-    			printf2("\r\nTemperatura wynosi: %d.%04d\r\n",res, rem);
-    		}else printf2("Blad odczytu! sproboj ponownie.\r\n");
-    		TIM_ITConfig(TIM2, TIM_IT_Update, DISABLE);
-    	}
+    	readTemp();
     }
 }
